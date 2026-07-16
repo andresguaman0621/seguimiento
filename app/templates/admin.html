@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Panel · Seguimiento{% endblock %}
+
+{% block body %}
+<div id="app" class="app-shell" v-cloak>
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" :class="{ open: sidebarOpen }">
+    <div class="sidebar-brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <div class="sidebar-brand-text">Seguimiento</div>
+        <div class="sidebar-brand-sub">Panel de jefatura</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button v-for="t in tabs" :key="t.id"
+              class="sidebar-link" :class="{ active: tab === t.id }"
+              @click="cambiarTab(t.id)">
+        <icon :name="t.icon" :size="18"></icon>
+        <span>[[ t.label ]]</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-footer">
+      <div class="avatar avatar-c0">[[ iniciales(usuario.nombre) ]]</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name">[[ usuario.nombre ]]</div>
+        <div class="sidebar-user-role">Administrador</div>
+      </div>
+      <button class="sidebar-icon-btn" @click="salir" title="Salir">
+        <icon name="log-out" :size="16"></icon>
+      </button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" :class="{ show: sidebarOpen }" @click="sidebarOpen = false"></div>
+
+  <!-- ============ MAIN AREA ============ -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-title">
+          <button class="topbar-hamburger" @click="sidebarOpen = !sidebarOpen">
+            <icon name="menu" :size="18"></icon>
+          </button>
+          <h1>[[ tituloTab ]]</h1>
+        </div>
+        <div class="topbar-user">
+          <span class="user-name">[[ usuario.nombre ]]</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <p v-if="error" class="alert alert-error"><icon name="circle-alert" :size="16"></icon>[[ error ]]</p>
+
+      <!-- ============ DASHBOARD ============ -->
+      <section v-show="tab === 'dashboard'">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon v-warning"><icon name="door-open" :size="22"></icon></div>
+            <div>
+              <div class="stat-value">[[ dashboard.length ]]</div>
+              <div class="stat-label">Fuera ahora</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon v-info"><icon name="calendar-days" :size="22"></icon></div>
+            <div>
+              <div class="stat-value">[[ statsHoy.length ]]</div>
+              <div class="stat-label">Actividades hoy</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon v-success"><icon name="circle-check" :size="22"></icon></div>
+            <div>
+              <div class="stat-value">[[ finalizadasHoy ]]</div>
+              <div class="stat-label">Finalizadas hoy</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <div>
+            <h2>Fuera de la oficina</h2>
+            <p>Funcionarios con una salida en curso ahora mismo.</p>
+          </div>
+          <button class="btn btn-outline btn-sm" @click="cargarDashboard" :disabled="cargando">
+            <icon name="history" :size="15"></icon> Actualizar
+          </button>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Funcionario</th><th>Tipo</th><th>Comentario</th><th>Desde</th><th>Tiempo fuera</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in dashboard" :key="a.id">
+                <td>
+                  <div class="avatar-row">
+                    <div class="avatar" :class="colorFor(a.usuario_id)">[[ iniciales(a.usuario_nombre) ]]</div>
+                    <span class="cell-name">[[ a.usuario_nombre ]]</span>
+                  </div>
+                </td>
+                <td><span class="badge badge-tipo">[[ a.tipo_nombre ]]</span></td>
+                <td class="cell-comment">[[ a.comentario ]]</td>
+                <td>[[ fmtHora(a.fecha_hora_inicio) ]]</td>
+                <td>[[ desde(a.fecha_hora_inicio) ]]</td>
+              </tr>
+              <tr v-if="!dashboard.length">
+                <td colspan="5">
+                  <div class="empty">
+                    <icon class="empty-icon" name="inbox" :size="34"></icon>
+                    Nadie fuera de la oficina en este momento.
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ HISTORIAL ============ -->
+      <section v-show="tab === 'historial'">
+        <div class="section-head">
+          <div>
+            <h2>Historial de actividades</h2>
+            <p>Consulta y filtra todas las salidas registradas.</p>
+          </div>
+        </div>
+
+        <div class="card filters">
+          <div class="filter-grid">
+            <div>
+              <label class="field-label"><icon name="calendar-days" :size="14"></icon> Desde</label>
+              <input type="date" v-model="filtros.desde" class="input">
+            </div>
+            <div>
+              <label class="field-label"><icon name="calendar-days" :size="14"></icon> Hasta</label>
+              <input type="date" v-model="filtros.hasta" class="input">
+            </div>
+            <div>
+              <label class="field-label"><icon name="user-round" :size="14"></icon> Funcionario</label>
+              <select v-model="filtros.usuario_id" class="input">
+                <option :value="''">Todos</option>
+                <option v-for="u in usuarios" :key="u.id" :value="u.id">[[ u.nombre ]]</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label"><icon name="filter" :size="14"></icon> Estado</label>
+              <select v-model="filtros.estado" class="input">
+                <option :value="''">Todos</option>
+                <option value="EN_CURSO">En curso</option>
+                <option value="FINALIZADA">Finalizada</option>
+                <option value="CANCELADA">Cancelada</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" @click="cargarHistorial" :disabled="cargando">
+              <icon name="search" :size="14"></icon> Aplicar filtros
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="limpiarFiltros">Limpiar</button>
+          </div>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Funcionario</th><th>Tipo</th><th>Comentario</th><th>Inicio</th><th>Fin</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in historial" :key="a.id">
+                <td>
+                  <div class="avatar-row">
+                    <div class="avatar" :class="colorFor(a.usuario_id)">[[ iniciales(a.usuario_nombre) ]]</div>
+                    <span class="cell-name">[[ a.usuario_nombre ]]</span>
+                  </div>
+                </td>
+                <td>[[ a.tipo_nombre ]]</td>
+                <td class="cell-comment">[[ a.comentario ]]</td>
+                <td>[[ fmtFechaHora(a.fecha_hora_inicio) ]]</td>
+                <td>[[ a.fecha_hora_fin ? fmtFechaHora(a.fecha_hora_fin) : '—' ]]</td>
+                <td><span class="badge" :class="badgeEstado(a.estado)">[[ etiquetaEstado(a.estado) ]]</span></td>
+              </tr>
+              <tr v-if="!historial.length">
+                <td colspan="6">
+                  <div class="empty">
+                    <icon class="empty-icon" name="inbox" :size="34"></icon>
+                    Sin resultados para estos filtros.
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ USUARIOS ============ -->
+      <section v-show="tab === 'usuarios'">
+        <div class="section-head">
+          <div>
+            <h2>Usuarios</h2>
+            <p>Gestiona quién tiene acceso al sistema.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="abrirUsuario()">
+            <icon name="plus" :size="15"></icon> Nuevo usuario
+          </button>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Funcionario</th><th>Cédula</th><th>Rol</th><th>Estado</th><th class="col-actions">Acciones</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="u in usuarios" :key="u.id" :class="{ inactive: !u.activo }">
+                <td>
+                  <div class="avatar-row">
+                    <div class="avatar" :class="colorFor(u.id)">[[ iniciales(u.nombre) ]]</div>
+                    <span class="cell-name">[[ u.nombre ]]</span>
+                  </div>
+                </td>
+                <td>[[ u.cedula ]]</td>
+                <td>[[ u.rol ]]</td>
+                <td>
+                  <span class="badge" :class="u.activo ? 'badge-activo' : 'badge-inactivo'">
+                    [[ u.activo ? 'Activo' : 'Inactivo' ]]
+                  </span>
+                </td>
+                <td class="col-actions">
+                  <button class="btn btn-ghost btn-xs" @click="abrirUsuario(u)"><icon name="pencil" :size="13"></icon> Editar</button>
+                  <button class="btn btn-xs" :class="u.activo ? 'btn-danger-outline' : 'btn-outline'"
+                          @click="toggleUsuario(u)">
+                    <icon name="power" :size="13"></icon> [[ u.activo ? 'Desactivar' : 'Activar' ]]
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!usuarios.length">
+                <td colspan="5"><div class="empty"><icon class="empty-icon" name="users" :size="34"></icon>No hay usuarios.</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ TIPOS ============ -->
+      <section v-show="tab === 'tipos'">
+        <div class="section-head">
+          <div>
+            <h2>Tipos de actividad</h2>
+            <p>Catálogo de motivos de salida disponibles para el equipo.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="abrirTipo()">
+            <icon name="plus" :size="15"></icon> Nuevo tipo
+          </button>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Nombre</th><th>Estado</th><th class="col-actions">Acciones</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in tipos" :key="t.id" :class="{ inactive: !t.activo }">
+                <td><span class="badge badge-tipo"><icon name="tag" :size="12"></icon> [[ t.nombre ]]</span></td>
+                <td>
+                  <span class="badge" :class="t.activo ? 'badge-activo' : 'badge-inactivo'">
+                    [[ t.activo ? 'Activo' : 'Inactivo' ]]
+                  </span>
+                </td>
+                <td class="col-actions">
+                  <button class="btn btn-ghost btn-xs" @click="abrirTipo(t)"><icon name="pencil" :size="13"></icon> Editar</button>
+                  <button class="btn btn-xs" :class="t.activo ? 'btn-danger-outline' : 'btn-outline'"
+                          @click="toggleTipo(t)">
+                    <icon name="power" :size="13"></icon> [[ t.activo ? 'Desactivar' : 'Activar' ]]
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!tipos.length">
+                <td colspan="3"><div class="empty"><icon class="empty-icon" name="tag" :size="34"></icon>No hay tipos.</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ============ MODAL USUARIO ============ -->
+  <div v-if="modalUsuario" class="modal-overlay" @click.self="modalUsuario = null">
+    <div class="card modal">
+      <div class="modal-head">
+        <div class="modal-icon"><icon name="user-round" :size="19"></icon></div>
+        <h3 class="card-title">[[ usuarioForm.id ? 'Editar usuario' : 'Nuevo usuario' ]]</h3>
+      </div>
+
+      <label class="field-label">Cédula</label>
+      <input v-model="usuarioForm.cedula" class="input" maxlength="10" inputmode="numeric"
+             :disabled="!!usuarioForm.id" @input="usuarioForm.cedula = usuarioForm.cedula.replace(/\D/g, '')">
+
+      <label class="field-label">Nombre</label>
+      <input v-model="usuarioForm.nombre" class="input">
+
+      <label class="field-label">Rol</label>
+      <select v-model="usuarioForm.rol" class="input">
+        <option value="FUNCIONARIO">FUNCIONARIO</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+
+      <p v-if="modalError" class="alert alert-error"><icon name="circle-alert" :size="16"></icon>[[ modalError ]]</p>
+
+      <div class="btn-row modal-actions">
+        <button class="btn btn-ghost" @click="modalUsuario = null">Cancelar</button>
+        <button class="btn btn-primary" @click="guardarUsuario" :disabled="modalGuardando">
+          <icon name="check" :size="15"></icon> Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL TIPO ============ -->
+  <div v-if="modalTipo" class="modal-overlay" @click.self="modalTipo = null">
+    <div class="card modal">
+      <div class="modal-head">
+        <div class="modal-icon"><icon name="tag" :size="19"></icon></div>
+        <h3 class="card-title">[[ tipoForm.id ? 'Editar tipo' : 'Nuevo tipo' ]]</h3>
+      </div>
+
+      <label class="field-label">Nombre</label>
+      <input v-model="tipoForm.nombre" class="input">
+
+      <p v-if="modalError" class="alert alert-error"><icon name="circle-alert" :size="16"></icon>[[ modalError ]]</p>
+
+      <div class="btn-row modal-actions">
+        <button class="btn btn-ghost" @click="modalTipo = null">Cancelar</button>
+        <button class="btn btn-primary" @click="guardarTipo" :disabled="modalGuardando">
+          <icon name="check" :size="15"></icon> Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset_url('js/admin.js') }}"></script>
+{% endblock %}

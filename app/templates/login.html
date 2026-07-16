@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Ingreso · Seguimiento{% endblock %}
+
+{% block body %}
+<div id="app" class="login-shell" v-cloak>
+  <!-- Panel de marca (oculto en móvil) -->
+  <div class="login-hero">
+    <div class="login-hero-content">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <div class="sidebar-brand-text">Seguimiento</div>
+          <div class="sidebar-brand-sub">Panel de actividades del equipo</div>
+        </div>
+      </div>
+      <h1 class="login-hero-title">Registra tus salidas en segundos.</h1>
+      <p class="login-hero-desc">
+        Una sola herramienta para que el equipo reporte sus salidas y la jefatura
+        tenga visibilidad en tiempo real de quién está en la oficina.
+      </p>
+      <ul class="login-hero-points">
+        <li><span class="icon-chip"><icon name="door-open" :size="16"></icon></span> Registra el motivo de tu salida en un clic</li>
+        <li><span class="icon-chip"><icon name="clock" :size="16"></icon></span> Cronómetro automático del tiempo fuera</li>
+        <li><span class="icon-chip"><icon name="dashboard" :size="16"></icon></span> Dashboard en vivo para la jefatura</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Panel de formulario -->
+  <div class="login-form-side">
+    <div class="card login-card">
+      <div class="login-card-head">
+        <div class="login-card-eyebrow">Acceso restringido</div>
+        <h1 class="login-card-title">Ingresa con tu cédula</h1>
+        <p class="login-card-sub">Los usuarios son creados previamente por la jefatura.</p>
+      </div>
+
+      <form @submit.prevent="ingresar" novalidate>
+        <label class="field-label" for="cedula">Número de cédula</label>
+        <div class="input-icon-wrap">
+          <icon name="user-round" :size="18"></icon>
+          <input
+            id="cedula"
+            v-model="cedula"
+            inputmode="numeric"
+            maxlength="10"
+            autocomplete="off"
+            placeholder="10 dígitos"
+            class="input input-lg"
+            :disabled="cargando"
+            @input="cedula = cedula.replace(/\D/g, '')"
+            autofocus>
+        </div>
+
+        <p v-if="error" class="alert alert-error"><icon name="circle-alert" :size="16"></icon> [[ error ]]</p>
+
+        <button type="submit" class="btn btn-primary btn-block" :disabled="cargando || cedula.length !== 10">
+          <icon v-if="!cargando" name="door-open" :size="16"></icon>
+          <span v-if="cargando">Ingresando...</span>
+          <span v-else>Ingresar</span>
+        </button>
+      </form>
+
+      <p class="login-hint"><icon name="shield-check" :size="15"></icon> Solo personal autorizado por la jefatura.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset_url('js/login.js') }}"></script>
+{% endblock %}

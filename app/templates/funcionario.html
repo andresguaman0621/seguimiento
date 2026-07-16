@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Mi actividad · Seguimiento{% endblock %}
+
+{% block body %}
+<div id="app" v-cloak>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-brand">
+        <div class="brand-mark sm">S</div>
+        <span>Seguimiento</span>
+      </div>
+      <div class="topbar-user">
+        <div class="user-menu">
+          <button class="user-menu-trigger" @click.stop="menuAbierto = !menuAbierto">
+            <div class="avatar avatar-c0 avatar-sm">[[ iniciales(usuario.nombre) ]]</div>
+            <span class="user-name">[[ usuario.nombre ]]</span>
+            <icon name="chevron-down" :size="15"></icon>
+          </button>
+          <div v-if="menuAbierto" class="user-menu-dropdown" @click.stop>
+            <div class="user-menu-header">
+              <div class="avatar avatar-c0 avatar-sm">[[ iniciales(usuario.nombre) ]]</div>
+              <div>
+                <div class="user-menu-name">[[ usuario.nombre ]]</div>
+                <div class="user-menu-role">Funcionario</div>
+              </div>
+            </div>
+            <button class="user-menu-item" @click="salir"><icon name="log-out" :size="15"></icon> Salir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container container-narrow">
+    <div v-if="cargando" class="card muted-block">Cargando...</div>
+
+    <!-- Sin actividad en curso: formulario para registrar salida -->
+    <div v-else-if="!actividad" class="card">
+      <div class="modal-head">
+        <div class="modal-icon"><icon name="door-open" :size="19"></icon></div>
+        <h2 class="card-title">Registrar salida</h2>
+      </div>
+      <p class="card-desc">Indica el tipo de actividad y un comentario del motivo de tu salida.</p>
+
+      <form @submit.prevent="registrar" novalidate>
+        <label class="field-label" for="tipo"><icon name="tag" :size="14"></icon> Tipo de actividad</label>
+        <select id="tipo" v-model="form.tipo_actividad_id" class="input" :disabled="guardando">
+          <option :value="null" disabled>Selecciona un tipo...</option>
+          <option v-for="t in tipos" :key="t.id" :value="t.id">[[ t.nombre ]]</option>
+        </select>
+
+        <label class="field-label" for="comentario"><icon name="message-square" :size="14"></icon> Comentario <span class="req">*</span></label>
+        <textarea
+          id="comentario"
+          v-model="form.comentario"
+          class="input"
+          rows="4"
+          maxlength="500"
+          placeholder="Detalle de la salida (obligatorio)"
+          :disabled="guardando"></textarea>
+
+        <p v-if="error" class="alert alert-error"><icon name="circle-alert" :size="16"></icon>[[ error ]]</p>
+
+        <button type="submit" class="btn btn-primary btn-block"
+                :disabled="guardando || !form.tipo_actividad_id || !form.comentario.trim()">
+          <icon name="door-open" :size="16"></icon>
+          <span v-if="guardando">Guardando...</span>
+          <span v-else>Iniciar salida</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Actividad en curso -->
+    <div v-else class="card activity-card">
+      <div class="activity-head">
+        <span class="badge badge-encurso">EN CURSO</span>
+        <span class="activity-timer"><icon name="clock" :size="14"></icon> [[ transcurrido ]]</span>
+      </div>
+
+      <div class="activity-type-row">
+        <div class="activity-type-icon"><icon name="tag" :size="18"></icon></div>
+        <h2 class="card-title">[[ actividad.tipo_nombre ]]</h2>
+      </div>
+      <p class="activity-comment">[[ actividad.comentario ]]</p>
+
+      <dl class="meta-list">
+        <div>
+          <dt><icon name="calendar-days" :size="13"></icon> Inicio</dt>
+          <dd>[[ fmtFechaHora(actividad.fecha_hora_inicio) ]]</dd>
+        </div>
+      </dl>
+
+      <p v-if="error" class="alert alert-error"><icon name="circle-alert" :size="16"></icon>[[ error ]]</p>
+
+      <div class="btn-row">
+        <button class="btn btn-success btn-block" @click="finalizar" :disabled="guardando">
+          <icon name="circle-check" :size="16"></icon> Finalizar
+        </button>
+        <button class="btn btn-danger-outline btn-block" @click="cancelar" :disabled="guardando">
+          <icon name="x" :size="16"></icon> Cancelar
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset_url('js/funcionario.js') }}"></script>
+{% endblock %}

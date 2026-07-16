@@ -119,3 +119,50 @@ y se muestran en hora local.
 El acceso solo con cédula es cómodo pero débil (las cédulas son semi-públicas). Mitigaciones
 incluidas: solo usuarios activos pueden ingresar, JWT de expiración corta y *rate-limit* básico
 en el login. Como mejora futura se puede añadir un PIN de 4 dígitos por usuario.
+
+## Despliegue en Vercel
+
+La app está lista para desplegarse en Vercel como función serverless (runtime de Python),
+usando `api/index.py` como punto de entrada WSGI y `vercel.json` para el enrutamiento.
+
+### 1. Variables de entorno
+
+En el dashboard del proyecto en Vercel → **Settings → Environment Variables**, configura:
+
+| Variable | Valor |
+|---|---|
+| `TURSO_DATABASE_URL` | URL real `libsql://<tu-db>-<org>.turso.io` (**no** `file:local.db`) |
+| `TURSO_AUTH_TOKEN` | Token generado con `turso db tokens create <tu-db>` |
+| `JWT_SECRET` | Un secreto largo y aleatorio propio (no el valor de ejemplo) |
+| `JWT_EXP_HOURS` | `8` (o el valor que prefieras) |
+| `SECRET_KEY` | Otro secreto largo y aleatorio propio |
+
+Si despliegas con `JWT_SECRET` sin configurar, la app falla al arrancar con un error explícito
+(`app/__init__.py`) en vez de servir silenciosamente con el secreto de desarrollo.
+
+### 2. Desplegar
+
+Con el CLI de Vercel (`npm i -g vercel`), desde la raíz del proyecto:
+
+```bash
+vercel          # despliegue de prueba (preview)
+vercel --prod   # despliegue de producción
+```
+
+También puedes conectar el repositorio de Git al proyecto de Vercel desde el dashboard para
+que cada push despliegue automáticamente. Antes de subir a producción, se recomienda probar
+localmente con `vercel dev` (simula el runtime serverless en tu máquina).
+
+### 3. Limitaciones a tener en cuenta
+
+- **`file:local.db` no funciona en Vercel**: el sistema de archivos de las funciones serverless
+  es efímero/de solo lectura. En producción `TURSO_DATABASE_URL` debe apuntar siempre a una
+  base de datos Turso real.
+- **El *rate-limit* del login es en memoria** (`app/api/auth_routes.py`): funciona bien en el
+  servidor de desarrollo, pero en serverless cada instancia/cold start tiene su propia memoria,
+  por lo que el límite deja de ser estricto (se reinicia entre instancias). Sigue siendo una
+  mitigación razonable para un sistema interno, pero si se requiere un límite estricto y
+  compartido, habría que moverlo a un almacén externo (p. ej. Upstash Redis).
+- Los archivos estáticos (`/static/...`) se sirven a través de la misma función de Flask; para
+  una app de este tamaño no representa un problema, pero implica que cada asset consume una
+  invocación de la función en vez de servirse desde la CDN estática de Vercel.

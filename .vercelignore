@@ -1,9 +1,9 @@
+venv/
 __pycache__/
 *.pyc
-venv/
-.venv/
-.env
 local.db
 local.db-*
 *.sqlite
-.vercel
+.env
+scripts/
+README.md
